@@ -1,10 +1,18 @@
 library(pracma)
+
 setwd("Dropbox/comp_econ/assignments")
+setwd("Dropbox/Teaching/2020/Methods/Assignment/A4")
+
 dat = read.csv("dat_choices.csv")
+
 
 ##########
 # PART 1 #
 ##########
+
+#//comments
+# perfect
+
 #1.1
 crra = function(c, theta, eps = 0.01) {
   ifelse(abs(theta-1)<eps,log(c),(c^(1-theta))/(1-theta))
@@ -36,6 +44,14 @@ choice = cbind(l1,l2)
 EU = function(bundle, theta) {
   return(0.5*(crra(bundle[1], theta)+crra(bundle[2], theta)))
 }
+
+#//comments
+# This works..
+# It would be simpler to put
+# if (abs(fc) < tolerance) return(c)
+# if (abs(c-a) < tolerance) return(c) 
+# in the while directly.. 
+
 find_theta = function(choiceSet, a=-6, b=6, tolerance = 10^(-10), max_iter = 100) {
   bundle1 = choiceSet[1:2]
   bundle2 = choiceSet[3:4]
@@ -60,6 +76,13 @@ find_theta = function(choiceSet, a=-6, b=6, tolerance = 10^(-10), max_iter = 100
 }
 thetas = apply(FUN = find_theta, X = choice, MARGIN = 1)
 
+#//comments
+# This is not correct.. the bound should be -inf, +inf in most cases.. 
+# the way you define the upper bound is not correct. In most stance, it should be +inf instead 
+# The identified set is given by
+# max(c(-Inf,thetas[i0])), min(c(thetas[i1],Inf)) 
+# if this is not ordered it is [-Inf,+Inf]
+
 #2.3: identified sets for each individual
 identify_individual = function(individualDecision, choiceSet=choice) {
   #to choose 0, theta is below the indifference
@@ -76,7 +99,8 @@ identify_individual = function(individualDecision, choiceSet=choice) {
 }
 #get distribution for each individual
 dist = c()
-for (i in 1:dim(dat)[[1]]) {
+#for (i in 1:dim(dat)[[1]]) {
+  for (i in 1:nrow(dat)) 
   myDes = dat[i,2:26]
   dist = cbind(dist, identify_individual(myDes, choice))
 }
@@ -85,6 +109,11 @@ for (i in 1:dim(dat)[[1]]) {
 ##########
 # PART 3 #
 ##########
+
+#//comments
+# Starting here your code could use more commenting
+# grid = linspace(-10,10,2000) this not R!!!!!
+
 library(evd)
 wealth=20
 #3.1
@@ -108,7 +137,10 @@ likelihood = function(ydat, choiceSet, theta, w=wealth) {
 }
 # likelihood(ydat=dat[900,], theta=0.5, choiceSet=choice)
 #3.2
+
 grid = linspace(-10,10,2000)
+grid = seq(-10,10,length.out=2000)
+
 #for individual 900
 i900 = dat[900,]
 vals900 = sapply(X=grid, FUN = likelihood, choiceSet=choice, ydat=i900)
@@ -123,12 +155,37 @@ grid[which(vals115==min(vals115))]
 # PART 4 #
 ##########
 
+
+#//comments
+# Tried a lot but this does not work on my computer
+# As a rule 
+#beale = function(x,y) {
+#  return((1.5-x+x*y)^2 + (2.25-x+x*y^2)^2 + (2.625-x+x*y^3)^2)
+#}
+# is very bad practice.. 
+#beale = function(param) {
+#x = param[1]
+#y = param[2]
+#  return((1.5-x+x*y)^2 + (2.25-x+x*y^2)^2 + (2.625-x+x*y^3)^2)
+#}
+
 beale = function(x,y) {
   return((1.5-x+x*y)^2 + (2.25-x+x*y^2)^2 + (2.625-x+x*y^3)^2)
 }
+
+beale_mod = function(param) {
+  x = param[1]
+  y = param[2]
+  return((1.5-x+x*y)^2 + (2.25-x+x*y^2)^2 + (2.625-x+x*y^3)^2)
+}
+
 #4.1
 xgrid = linspace(-5,5,10/0.01)
 ygrid = linspace(-5,5,10/0.01)
+grid  = expand.grid(xgrid,ygrid)
+bruteforce = apply(grid,1,beale_mod)
+grid[which.min(bruteforce),]
+
 #structure such that beale(xgrid[2], ygrid[1]) = bruteforce[2,1] and so on
 bruteforce = sapply(X = ygrid, FUN = beale, x = xgrid)
 x0y0 = c(which(bruteforce==min(bruteforce), arr.ind = T)[1,1], which(bruteforce==min(bruteforce), arr.ind = T)[1,2])
@@ -157,6 +214,12 @@ fprime_beale(c(x,y))
 ##########
 # PART 5 #
 ##########
+#//comments
+# The programming is clear.. 
+# does it work? 
+# Since everything is so general, why not input the function to optimize in fprime and steepest? 
+
+
 f = function(vals) {
   x = vals[1]
   y = vals[2]
@@ -209,6 +272,12 @@ steepest_descent1 = function(start=c(0,0), tol=10^(-10), max_iter = 100000) {
 ##########
 # PART 6 #
 ##########
+#//comments
+# The programming is clear.. 
+# be careful you are returning the loglikelihood.. Optim minimizes!! 
+# does it work? the answer is no.. 
+# the goal of this was to illustrate how messy optimization could be.. You have completely miss that part.. 
+
 library(dplyr)
 library(AER)
 library(stats)
@@ -259,6 +328,10 @@ se = 1/sqrt(fisher)
 ##########
 # PART 7 #
 ##########
+#//comments
+# You are minimizing the likelihood of observing the data!!
+# Unfortunately not much can be learnt from this. 
+
 library(nloptr)
 individual = dat[5,]
 #7.1
@@ -296,6 +369,7 @@ bobyqa(myParams, likelihood_norm, ydat=individual, lower=myLower) #stuck at loca
 neldermead(myParams, likelihood_norm, ydat=individual, lower=myLower, ydat=individual) #stuck at local
 
 #bobyqa for full sample
+# the comments says bobyqa but isres is implemented!!!!!!
 est = function(person, start=myParams, choiceSet = choice, w=wealth) {
   params = isres(start, likelihood_norm, ydat=person, lower=myLower, upper=myUpper, maxeval=500000)
   return(params$par)
